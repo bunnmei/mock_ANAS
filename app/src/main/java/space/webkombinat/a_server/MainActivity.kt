@@ -1,10 +1,12 @@
 package space.webkombinat.a_server
 
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -16,13 +18,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.lifecycle.lifecycleScope
-import io.ktor.server.engine.embeddedServer
-import io.ktor.server.netty.Netty
-import io.ktor.server.routing.routing
-import io.ktor.server.routing.get
-import io.ktor.server.application.call
-import io.ktor.server.response.respondText
+import dagger.hilt.android.AndroidEntryPoint
+import jakarta.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -31,52 +28,62 @@ import java.net.Inet4Address
 import java.net.NetworkInterface
 
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    @Inject
+    lateinit var sd: DirParser
+
+    val openDocumentTreeLauncher =
+        registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+            if (uri != null) {
+                // 永続的なアクセス権を保持する
+                contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                )
+                sd.setUri(uri)
+                if (sd.checkUir()){
+                    val intent = Intent(application, ServerService::class.java)
+                    application.startForegroundService(intent)
+                }
+                println("選択されたURI: $uri")
+            } else {
+                println("選択されなかった")
+            }
+        }
+
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val sd = DirParser(this)
+
         enableEdgeToEdge()
         setContent {
             A_serverTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     Column(
                         modifier = Modifier.padding(innerPadding)
-                            .fillMaxSize()
-                        ,
-                        horizontalAlignment = Alignment.CenterHorizontally
-                        ,
+                            .fillMaxSize(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
 
                         Button(onClick = {
-                            lifecycleScope.launch(Dispatchers.IO) {
-                                try {
-                                    embeddedServer(Netty, port = 8080, host = "0.0.0.0") {
-                                        routing {
-                                            get("/") {
-                                                call.respondText("Hello, world!")
-                                            }
-                                        }
-                                    }.start(wait = false)
-
-                                    Log.d("KtorServer", "Server started on port 8080")
-                                } catch (e: Exception) {
-                                    Log.e("KtorServer", "Error starting server", e)
-                                }
-                            }
+                            openDocumentTreeLauncher.launch(null)
                         }) {
                             Text("Server Start")
                         }
 
                         Button(onClick = {
-                           sd.searchANASFolderSDCard()
+//                           sd.searchANASFolderSDCard()
                         }){
                             Text("Search SD")
                         }
 
                         Button(onClick = {
                             CoroutineScope(Dispatchers.IO).launch {
-                                sd.perfomFileOperations()
+                                sd.readDir("/MyDataFolder")
+//                                sd.perfomFileOperations()
                             }
                         }){
                             Text("File Operations")

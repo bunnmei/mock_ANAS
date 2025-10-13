@@ -37,6 +37,11 @@ class DirParser(
         return false
     }
 
+    fun getDocumentRoot(): DocumentFile {
+        var currentDir = DocumentFile.fromTreeUri(context, sdcardPath!!)
+        return currentDir!!
+    }
+
     fun readDir(path : String): MutableList<A_FolderOrFile> {
         var folders: MutableList<A_FolderOrFile> = mutableListOf()
         if (sdcardPath == null) return folders

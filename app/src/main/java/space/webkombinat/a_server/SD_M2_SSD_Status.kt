@@ -1,23 +1,42 @@
 package space.webkombinat.a_server
 
+import android.content.Context
+import android.net.Uri
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.documentfile.provider.DocumentFile
 
-class SD_M2_SSD_Status {
 
-//    var sd_m2_ssd_status = mutableStateOf(false)
-//    val sd_m2_ssd_text = "内部SDもしくはUSB(m.2,ssd)があるか"
-//
-//    val sd_m2_ssd_path_state = mutableStateOf(false)
-//    val sd_m2_ssd_path_text = "内部SDもしくはUSB(m.2,ssd)のパスを選んでいるか"
+//data class FolderCheck(
+//    val status: MutableState<Boolean>,
+//    val text: String
+//) {
+//    enum class Type {
+//        Exists, Readable, Writable
+//    }
+//}
 
-    var strage_ANAS_state = mutableStateOf(false)
-    val strage_ANAS_text = "./ANASフォルダを選んでいるか"
+data class FolderCheck(
+    val status: MutableState<Boolean>,
+    val text: String,
+    val checker: (DocumentFile) -> Boolean
+)
 
-    var ANAS_read_state = mutableStateOf(false)
-    val ANAS_read_text = "./ANASフォルダ下を読み取ることができるか"
+class SD_M2_SSD_Uri(
+    val uri: Uri
+) {
+    val folderCheckList = listOf(
+        FolderCheck(mutableStateOf(false), ".ANASフォルダか") { it.name == ".ANAS" },
+        FolderCheck(mutableStateOf(false), ".ANASフォルダRead") { it.canRead() },
+        FolderCheck(mutableStateOf(false), ".ANASフォルダWrite") { it.canWrite() })
 
-    var ANAS_wirte_state = mutableStateOf(false)
-    val ANAS_write_text = "./ANASフォルダ下に書き込むことができるか"
+    fun checkerRun(context: Context) {
+        val rootDir = DocumentFile.fromTreeUri(context, uri)
+        if (rootDir == null) return
+        folderCheckList.forEachIndexed { i, checkObj ->
+            checkObj.status.value = checkObj.checker(rootDir)
+        }
+    }
 }
 
-//複数のSSDに対応させる

@@ -8,6 +8,7 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.runtime.mutableStateListOf
 import androidx.core.app.ActivityCompat.startActivityForResult
 import androidx.documentfile.provider.DocumentFile
 import androidx.core.net.toUri
@@ -25,6 +26,8 @@ class DirParser(
 
 //    SAF strage access framework
     private var sdcardPath: Uri? = null
+
+    var storageList = mutableStateListOf<SD_M2_SSD_Uri>()
 
     fun setUri(uri: Uri) {
         sdcardPath = uri

@@ -2,6 +2,7 @@ package space.webkombinat.a_server
 
 import android.content.Context
 import android.net.Uri
+import android.provider.DocumentsContract
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -37,6 +38,13 @@ class SD_M2_SSD_Uri(
         folderCheckList.forEachIndexed { i, checkObj ->
             checkObj.status.value = checkObj.checker(rootDir)
         }
+    }
+
+    fun getUriUuid(): String? {
+        val docId = DocumentsContract.getTreeDocumentId(uri)
+        val parts = docId.split(":")
+        val volumeId = parts[0]
+        return volumeId
     }
 }
 

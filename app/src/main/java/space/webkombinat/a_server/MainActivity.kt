@@ -1,22 +1,20 @@
 package space.webkombinat.a_server
 
 import android.content.Intent
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.os.storage.StorageManager
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.Divider
@@ -25,20 +23,13 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import dagger.hilt.android.AndroidEntryPoint
 import jakarta.inject.Inject
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import space.webkombinat.a_server.ui.theme.A_serverTheme
 import java.net.Inet4Address
 import java.net.NetworkInterface
@@ -61,12 +52,6 @@ class MainActivity : ComponentActivity() {
                 val newUri = SD_M2_SSD_Uri(uri)
                 newUri.checkerRun(context = applicationContext)
                 sd.storageList.add(newUri)
-
-//                sd.setUri(uri)
-//                if (sd.checkUir()){
-//                    val intent = Intent(application, ServerService::class.java)
-//                    application.startForegroundService(intent)
-//                }
                 println("選択されたURI: $uri")
             } else {
                 println("選択されなかった")
@@ -93,8 +78,8 @@ class MainActivity : ComponentActivity() {
                             modifier = Modifier.fillMaxWidth(),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Column {
-                                sd.storageList.forEach { uri ->
+                            sd.storageList.forEach { uri ->
+                                Column {
                                     uri.folderCheckList.forEach { checkObj ->
                                         CheckStatus(
                                             label = checkObj.text,
@@ -102,15 +87,17 @@ class MainActivity : ComponentActivity() {
                                         )
                                     }
                                 }
+                                HorizontalDivider(
+                                    Modifier,
+                                    DividerDefaults.Thickness,
+                                    DividerDefaults.color
+                                )
                             }
+
                             if (sd.storageList.isEmpty()) {
                                 Text("SD,M2,SSD未選択")
                             }
-                            HorizontalDivider(
-                                Modifier,
-                                DividerDefaults.Thickness,
-                                DividerDefaults.color
-                            )
+
                             Row(
                                 modifier = Modifier.fillMaxWidth(0.8f),
                             ) {
@@ -122,52 +109,34 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
                         }
-
-                        Button(onClick = {
-                            openDocumentTreeLauncher.launch(null)
-                        }) {
-                            Text("Server Start")
+                        // ex storage setting 上
+                        Spacer(modifier = Modifier.weight(1f))
+                        // Server setting
+                        sd.storageList.forEach { uri ->
+                            Text("Port: ${getLocalIpAddress()}/${uri.getUriUuid()}")
                         }
-
-                        Button(onClick = {
-                            val storageManager = context.getSystemService(StorageManager::class.java)
-                            val volumes = storageManager.storageVolumes
-
-                            for (vol in volumes) {
-                                val uuid = vol.uuid // USBやSDカードごとにユニーク
-                                val desc = vol.getDescription(context) // "SDカード", "USBメモリ"など
-
-//                                val path = vol.directory?.absolutePath
-                                val s = vol.state
-
-                                val e = vol.directory
-
-                                println("UUID: $uuid, Description: $desc  -- $s ::: $e")
+                        Row(modifier = Modifier
+                            .fillMaxWidth(0.9f)
+                            .height(60.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Button(onClick = {
+                            }) {
+                                Text("Server Stop")
                             }
 
+                            Spacer(modifier = Modifier.weight(1f))
 
-                        }){
-                            Text("Search SD")
-                        }
-
-                        Button(onClick = {
-                            CoroutineScope(Dispatchers.IO).launch {
-                                sd.readDir("/MyDataFolder")
-//                                sd.perfomFileOperations()
+                            Button(onClick = {
+    //                             val intent = Intent(application, ServerService::class.java)
+    //                             application.startForegroundService(intent)
+                            }) {
+                                Text("Server Start")
                             }
-                        }){
-                            Text("File Operations")
                         }
 
-                        Text(getLocalIpAddress())
                     }
-//                    Greeting(
-//                        name = "Android",
-//                        modifier = Modifier.padding(innerPadding)
-//                    )
                 }
-
-
             }
         }
     }
@@ -207,3 +176,18 @@ fun GreetingPreview() {
         Greeting("Android")
     }
 }
+
+//val storageManager = context.getSystemService(StorageManager::class.java)
+//val volumes = storageManager.storageVolumes
+//
+//for (vol in volumes) {
+//    val uuid = vol.uuid // USBやSDカードごとにユニーク
+//    val desc = vol.getDescription(context) // "SDカード", "USBメモリ"など
+//
+////                                val path = vol.directory?.absolutePath
+//    val s = vol.state
+//
+//    val e = vol.directory
+//
+//    println("UUID: $uuid, Description: $desc  -- $s ::: $e")
+//}

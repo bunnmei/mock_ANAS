@@ -99,7 +99,19 @@ class ServerService: Service() {
             }
             routing {
                 get("/") {
-                    call.respondText("Server is running", ContentType.Text.Plain)
+
+//                    val data = sd.openAssets()
+//                    call.respondBytes(data, ContentType.Text.Html)
+//                    call.respondText("Server is running", ContentType.Text.Plain)
+
+                    val data = sd.openAssetsRewrite()
+                    call.respondText(data, ContentType.Text.Html)
+                }
+
+                sd.storageList.forEach { uri ->
+                    get("/${uri.getUriUuid()}") {
+                        call.respondText("currentf path : ${uri.getUriUuid()}", ContentType.Text.Plain)
+                    }
                 }
 
                 get("/public/{path...}") {
@@ -193,6 +205,18 @@ class ServerService: Service() {
                     call.respond(folders)
                 }
 
+                post("/create_folder"){
+                    val body = call.receive<RequestFolderBody>()
+                    println("受け取った文字列: ${body.folderName}")
+                    val status = sd.makeDir(body.path, body.folderName)
+                    when(status) {
+                        FolderMake.ALREADY_EXIST -> call.respond(ResponseMessage("already exist"))
+                        FolderMake.MADE -> call.respond(ResponseMessage("made"))
+                        FolderMake.FAIL -> call.respond(ResponseMessage("fail"))
+                    }
+//                    call.respond("ok ${body.folderName} path: ${body.path}")
+                }
+
                 post("/upload") {
                     val multipart = call.receiveMultipart()
                     var savedFileName: String? = null
@@ -269,3 +293,27 @@ class ServerService: Service() {
 //                            ),
 //                        )
 //                    )
+
+
+// 分割
+
+//fun Route.uploadRoutes(root: DocumentFile) {
+//    post("/upload") {
+//        val path = call.request.queryParameters["path"] ?: ""
+//        val targetDir = findDocumentFile(root, path) ?: root
+//        val multipart = call.receiveMultipart()
+//        multipart.forEachPart { part ->
+//            if (part is PartData.FileItem) {
+//                val name = part.originalFileName ?: "uploaded.bin"
+//                val newFile = targetDir.createFile("application/octet-stream", name)
+//                if (newFile != null) {
+//                    contentResolver.openOutputStream(newFile.uri)?.use { output ->
+//                        part.streamProvider().copyTo(output)
+//                    }
+//                }
+//            }
+//            part.dispose()
+//        }
+//        call.respondText("Upload completed")
+//    }
+//}

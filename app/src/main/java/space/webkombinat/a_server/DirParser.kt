@@ -3,11 +3,17 @@ package space.webkombinat.a_server
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
+import android.os.StatFs
+import android.os.storage.StorageManager
 import android.provider.DocumentsContract
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.animation.core.rememberTransition
+import androidx.compose.material3.Text
 import androidx.compose.runtime.mutableStateListOf
 import androidx.core.app.ActivityCompat.startActivityForResult
 import androidx.documentfile.provider.DocumentFile
@@ -20,6 +26,13 @@ import io.ktor.server.application.hooks.ResponseBodyReadyForSend
 import io.ktor.util.asStream
 import java.io.InputStream
 
+
+enum class FolderMake{
+    ALREADY_EXIST,
+    MADE,
+    FAIL
+}
+
 class DirParser(
     private val context: Context
 ) {
@@ -29,8 +42,92 @@ class DirParser(
 
     var storageList = mutableStateListOf<SD_M2_SSD_Uri>()
 
+//    @RequiresApi(Build.VERSION_CODES.R)
     fun setUri(uri: Uri) {
         sdcardPath = uri
+//        getStorageStats()
+    }
+
+//    @RequiresApi(Build.VERSION_CODES.R)
+//    fun getStorageStats(){
+//        val docId = DocumentsContract.getTreeDocumentId(sdcardPath)
+//        val parts = docId.split(":")
+//        val volumeId = parts.firstOrNull()
+//
+//
+//        val storageManager = context.getSystemService(Context.STORAGE_SERVICE) as StorageManager
+//        val storageVolumes = storageManager.storageVolumes
+//
+//        // UUID またはパスにマッチするボリュームを探す
+//        val volume = storageVolumes.find { it.uuid == volumeId || it.getDescription(context) == volumeId }
+//
+//
+//        val path = volume?.directory
+//
+//        val stat = StatFs(path?.absolutePath)
+//        val total = stat.totalBytes
+//        val free = stat.availableBytes
+//
+//        println("free : ${free / (1024 * 1024 * 1024)}GB / total : ${total / (1024 * 1024 * 1024)}GB")
+//    }
+
+//    fun findVolumeAndStats(context: Context, uri: Uri) {
+//        val sm = context.getSystemService(Context.STORAGE_SERVICE) as StorageManager
+//        for (v in sm.storageVolumes) {
+//            val path = v.directory ?: continue
+//            if (uri.toString().contains(v.uuid ?: "")) {
+//                val stat = StatFs(path.absolutePath)
+//                Log.d("Storage", "Volume: ${v.getDescription(context)}")
+//                Log.d("Storage", "Total: ${stat.totalBytes / (1024 * 1024)} MB")
+//                Log.d("Storage", "Free: ${stat.availableBytes / (1024 * 1024)} MB")
+//            }
+//        }
+//    }
+
+//    @Suppress("DEPRECATION")
+//    fun getStorageStatsCompat(context: Context, treeUri: Uri): Pair<Long, Long>? {
+//        val docId = DocumentsContract.getTreeDocumentId(treeUri)
+//        val volumeId = docId.substringBefore(":")
+//
+//        val storageManager = context.getSystemService(Context.STORAGE_SERVICE) as StorageManager
+//
+//        // --- Android 11以降（API30+） ---
+//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+//            val volume = storageManager.storageVolumes.find { it.uuid == volumeId || it.isPrimary && volumeId == "primary" }
+//            val path = volume?.directory ?: return null
+//            val stat = StatFs(path.absolutePath)
+//            return stat.totalBytes to stat.availableBytes
+//        }
+//
+//        // --- Android 10以前（API29以下） ---
+//        else {
+//            val path = when (volumeId) {
+//                "primary" -> Environment.getExternalStorageDirectory()
+//                else -> {
+//                    // 外部ストレージのリストからUUIDが一致するものを探す
+//                    val candidates = context.getExternalFilesDirs(null)
+//                    candidates.firstOrNull { it != null && it.path.contains(volumeId, ignoreCase = true) }
+//                }
+//            } ?: return null
+//
+//            val stat = StatFs(path.path)
+//            return stat.totalBytes to stat.availableBytes
+//        }
+//    }
+    fun openAssets(): ByteArray {
+        val bytes = context.assets.open("index.html").readBytes()
+        return bytes
+    }
+
+    fun  openAssetsRewrite(): String {
+        val text = context.assets.open("index.html").bufferedReader().use { it.readText() }
+        var linkTagString = ""
+        storageList.forEach { uri ->
+            linkTagString += "<a href=\"/${uri.getUriUuid()}\">/${uri.getUriUuid()}</a>"
+        }
+        val reWrite = text.replace("*", linkTagString)
+        println(reWrite)
+        return reWrite
     }
 
     fun checkUir(): Boolean {
@@ -113,6 +210,37 @@ class DirParser(
             "/" // xzsだけならルート扱い
         }
     }
+
+    fun makeDir(path: String, dirName: String): FolderMake {
+        var currentDir = DocumentFile.fromTreeUri(context, sdcardPath!!)
+
+        val parts = path.split("/").filter { it.isNotEmpty() }
+
+        for (part in parts) {
+            val nextDir = currentDir?.findFile(part)
+            currentDir = if (nextDir == null || !nextDir.isDirectory) {
+                // 無ければ作る
+                currentDir?.createDirectory(part)
+            } else {
+                nextDir
+            }
+        }
+
+        val existing = currentDir?.findFile(dirName)
+        if (existing != null && existing.isDirectory) {
+            Log.d("makeDir", "既に存在します: ${existing.uri}")
+            return FolderMake.ALREADY_EXIST
+        }
+
+        val newDir = currentDir?.createDirectory(dirName)
+        Log.d("makeDir", "作成しました: ${newDir?.uri}")
+        return FolderMake.MADE
+    }
+
+    fun writeFile(path: String) {
+
+    }
+
     fun writePartDataToDirectory(partData: PartData) {
 
         val contentResolver = context.contentResolver

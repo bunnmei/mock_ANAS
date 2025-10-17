@@ -51,6 +51,7 @@ class MainActivity : ComponentActivity() {
                 )
                 val newUri = SD_M2_SSD_Uri(uri)
                 newUri.checkerRun(context = applicationContext)
+                sd.setUri(uri)
                 sd.storageList.add(newUri)
                 println("選択されたURI: $uri")
             } else {
@@ -111,6 +112,17 @@ class MainActivity : ComponentActivity() {
                         }
                         // ex storage setting 上
                         Spacer(modifier = Modifier.weight(1f))
+
+                        Row(modifier = Modifier
+                            .fillMaxWidth(0.9f)
+                            .height(60.dp),
+                        ){
+                            Button(onClick = {
+                                sd.makeDir("/MyDataFolder", "Hoge")
+                            }) {
+                                Text("make folder")
+                            }
+                        }
                         // Server setting
                         sd.storageList.forEach { uri ->
                             Text("Port: ${getLocalIpAddress()}/${uri.getUriUuid()}")
@@ -128,8 +140,10 @@ class MainActivity : ComponentActivity() {
                             Spacer(modifier = Modifier.weight(1f))
 
                             Button(onClick = {
-    //                             val intent = Intent(application, ServerService::class.java)
-    //                             application.startForegroundService(intent)
+                                if (sd.checkUir()) {
+                                    val intent = Intent(application, ServerService::class.java)
+                                    application.startForegroundService(intent)
+                                }
                             }) {
                                 Text("Server Start")
                             }

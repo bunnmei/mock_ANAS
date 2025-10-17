@@ -26,6 +26,17 @@ data class A_Folder(
 
 @Serializable
 data class RequestBody(val query: String)
+
+@Serializable
+data class RequestFolderBody(
+    val folderName: String,
+    val path: String,
+)
+
+@Serializable
+data class ResponseMessage(
+    val message: String
+)
 //@Serializable
 //data class A_FolderOrFile(
 //    val type: String,

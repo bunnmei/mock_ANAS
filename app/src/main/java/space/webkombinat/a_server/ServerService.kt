@@ -15,6 +15,7 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.PartData
 import io.ktor.http.content.forEachPart
+import io.ktor.http.content.streamProvider
 import io.ktor.http.defaultForFile
 import io.ktor.http.defaultForFilePath
 import io.ktor.serialization.kotlinx.json.json
@@ -38,6 +39,7 @@ import io.ktor.server.routing.routing
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import java.io.File
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -220,16 +222,67 @@ class ServerService: Service() {
                 post("/upload") {
                     val multipart = call.receiveMultipart()
                     var savedFileName: String? = null
+                    var targetPath: String? = null
+
+                    val fileItems = mutableListOf<PartData.FileItem>()
 
                     multipart.forEachPart { part ->
-                        if (part is PartData.FileItem) {
-                            savedFileName = part.originalFileName ?: "uploaded_file"
-                            sd.writePartDataToDirectory(part)
-                            part.dispose()
+                        when (part) {
+                            is PartData.FormItem -> {
+                                if (part.name == "targetPath") {
+                                    targetPath = part.value
+                                    println("targetPath = ${targetPath}")
+                                }
+                                println("content type - ${part.contentType} - ${part.name} - ${part.value}")
+                            }
+                            is PartData.FileItem -> {
+                                fileItems.add(part)
+                            }
+                            else -> {}
                         }
                     }
-                    println("アップロードされたファイル名: $savedFileName")
-                    call.respondText("File uploaded: $savedFileName", status = HttpStatusCode.OK)
+
+                    for(fileItem in fileItems){
+                        if (targetPath != null) {
+                            val name = fileItem.originalFileName ?: "unknown"
+                            val parts = name.split("/").filter { it.isNotBlank() }
+                            var makePath = targetPath!!
+                            parts.forEachIndexed { i, part ->
+                                if(parts.size != i+1) {
+                                    println("path ${makePath} - $part")
+                                    val status = sd.makeDir(makePath, part)
+                                    println("status - ${status.name}")
+                                    makePath += "/$part"
+//                                    println("targetPath - $targetPath / makePath - $part")
+                                } else {
+                                    val targetDir = findDocumentFile(root, makePath) ?: root
+                                    val newFile = targetDir.createFile("application/octet-stream", part)
+                                    if (newFile != null) {
+                                        contentResolver.openOutputStream(newFile.uri)?.use { output ->
+                                            fileItem.streamProvider().copyTo(output)
+                                        }
+                                    }
+                                }
+                            }
+//                            for (part in parts) {
+//                                println("path - $part")
+//                            }
+
+//                            val targetDir = findDocumentFile(root, targetPath) ?: root
+//                            val name = fileItem.originalFileName ?: "unknown"
+//                            sd.makeDir(targetPath, name)
+//                            val newFile = targetDir.createFile("application/octet-stream", name)
+//                            if (newFile != null) {
+//                                contentResolver.openOutputStream(newFile.uri)?.use { output ->
+//                                    fileItem.streamProvider().copyTo(output)
+//                                }
+//                            }
+                        }
+//                        println("content type - ${fileItem.contentType}/ originalFileName - ${ fileItem.originalFileName ?: "unknown"}")
+                        fileItem.dispose()
+                    }
+
+                    call.respond(ResponseMessage("uploaded"))
                 }
             }
         }.start(wait = false)

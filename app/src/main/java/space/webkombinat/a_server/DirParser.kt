@@ -24,7 +24,11 @@ import io.ktor.http.content.PartData
 import io.ktor.http.content.streamProvider
 import io.ktor.server.application.hooks.ResponseBodyReadyForSend
 import io.ktor.util.asStream
+import java.io.File
+import java.io.FileOutputStream
 import java.io.InputStream
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
 
 
 enum class FolderMake{
@@ -140,6 +144,60 @@ class DirParser(
     fun getDocumentRoot(): DocumentFile {
         var currentDir = DocumentFile.fromTreeUri(context, sdcardPath!!)
         return currentDir!!
+    }
+
+    fun makeZip(path: String): File {
+        val folderName = path.split("/").filter { it.isNotEmpty() }
+        val outputPath = context.cacheDir.resolve("${folderName.last()}.zip").absolutePath
+
+        zipFolderFromDocumentFile(
+            relativePath = path,
+            outputZipPath = outputPath
+        )
+
+        println("ZIP作成完了: $outputPath")
+        val zipFile = File(context.cacheDir, "${folderName.last()}.zip")
+        return zipFile
+    }
+
+    fun zipFolderFromDocumentFile( relativePath: String, outputZipPath: String) {
+        // relativePath を辿って目的フォルダを取得
+        var targetDir = getDocumentRoot()
+        relativePath.split("/").forEach { part ->
+            if (part.isNotEmpty()) {
+                targetDir = targetDir.findFile(part) ?: throw Exception("フォルダが見つかりません: $part")
+            }
+        }
+
+        // ZIP出力先（例：/data/data/your.app/cache/folder.zip）
+        val zipOut = ZipOutputStream(FileOutputStream(outputZipPath))
+
+        // 再帰的にフォルダを圧縮
+        fun addDocumentToZip(dir: DocumentFile, basePath: String) {
+            for (file in dir.listFiles()) {
+                if (file.isDirectory) {
+                    addDocumentToZip(file, "$basePath${file.name}/")
+                } else if (file.isFile) {
+                    val entry = ZipEntry("$basePath${file.name}")
+                    zipOut.putNextEntry(entry)
+
+                    val inputStream: InputStream? = try {
+                        context.contentResolver.openInputStream(file.uri)
+                    } catch (e: Exception) {
+                        null
+                    }
+
+                    inputStream?.use {
+                        it.copyTo(zipOut)
+                    }
+
+                    zipOut.closeEntry()
+                }
+            }
+        }
+
+        addDocumentToZip(targetDir, "")
+        zipOut.close()
     }
 
     fun readDir(path : String): MutableList<A_FolderOrFile> {

@@ -31,6 +31,7 @@ import io.ktor.server.request.receiveMultipart
 import io.ktor.server.response.header
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondBytes
+import io.ktor.server.response.respondFile
 import io.ktor.server.response.respondOutputStream
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
@@ -40,6 +41,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import java.io.File
+import java.io.FileOutputStream
+import java.util.zip.ZipOutputStream
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -81,6 +84,7 @@ class ServerService: Service() {
 
         startForeground(1, notification)
     }
+
 
     private fun startServer() {
         val root = sd.getDocumentRoot()
@@ -217,6 +221,12 @@ class ServerService: Service() {
                         FolderMake.FAIL -> call.respond(ResponseMessage("fail"))
                     }
 //                    call.respond("ok ${body.folderName} path: ${body.path}")
+                }
+
+                post("/download"){
+                    val body = call.receive<RequestDownloadBody>()
+                    val zipFile = sd.makeZip(path = body.uri)
+                    call.respondFile(zipFile)
                 }
 
                 post("/upload") {

@@ -34,6 +34,11 @@ data class RequestFolderBody(
 )
 
 @Serializable
+data class RequestDownloadBody(
+    val uri: String
+)
+
+@Serializable
 data class ResponseMessage(
     val message: String
 )

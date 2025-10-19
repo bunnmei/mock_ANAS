@@ -1,5 +1,6 @@
 package space.webkombinat.a_server
 
+import android.content.ContentResolver
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -19,10 +20,16 @@ import androidx.core.app.ActivityCompat.startActivityForResult
 import androidx.documentfile.provider.DocumentFile
 import androidx.core.net.toUri
 import dagger.hilt.android.qualifiers.ApplicationContext
+import io.ktor.http.ContentDisposition
+import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
 import io.ktor.http.Url
 import io.ktor.http.content.PartData
 import io.ktor.http.content.streamProvider
+import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.hooks.ResponseBodyReadyForSend
+import io.ktor.server.response.header
+import io.ktor.server.response.respondOutputStream
 import io.ktor.util.asStream
 import java.io.File
 import java.io.FileOutputStream
@@ -344,6 +351,41 @@ class DirParser(
             }
         } else {
             println("ファイル作成失敗")
+        }
+    }
+
+    suspend fun respondFile(call: ApplicationCall, uri: String) {
+        var currentDir: DocumentFile? = getDocumentRoot()
+        val segments = uri.split("/").filter { it.isNotEmpty() }
+
+        for (segment in segments.dropLast(1)) {
+            // 途中のフォルダを探す or 作成する
+            currentDir = currentDir?.findFile(segment)
+                ?: currentDir?.createDirectory(segment)
+
+        }
+
+        val last: String? = segments.lastOrNull()
+        if (last == null) return
+        val target = currentDir?.findFile(last)
+        if (target == null) return
+        val resolver: ContentResolver = context.contentResolver
+
+
+        val mimeType = resolver.getType(target?.uri ?: Uri.EMPTY) ?: "application/octet-stream"
+
+        call.response.header(
+            HttpHeaders.ContentDisposition,
+            ContentDisposition.Attachment.withParameter(
+                ContentDisposition.Parameters.FileName, target.name ?: "hoge").toString()
+        )
+        call.response.header(HttpHeaders.ContentType, mimeType)
+
+        call.respondOutputStream(ContentType.parse(mimeType)) {
+            println("uri ${uri}")
+            resolver.openInputStream(target.uri)?.use { input ->
+                input.copyTo(this)
+            }
         }
     }
 

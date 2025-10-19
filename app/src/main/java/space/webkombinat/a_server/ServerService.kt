@@ -6,10 +6,12 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
 import android.content.Intent
+import android.net.Uri
 import android.os.IBinder
 import android.os.PowerManager
 import androidx.documentfile.provider.DocumentFile
 import dagger.hilt.android.AndroidEntryPoint
+import io.ktor.http.ContentDisposition
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
@@ -225,8 +227,14 @@ class ServerService: Service() {
 
                 post("/download"){
                     val body = call.receive<RequestDownloadBody>()
-                    val zipFile = sd.makeZip(path = body.uri)
-                    call.respondFile(zipFile)
+                    if (body.type == "folder") {
+                        val zipFile = sd.makeZip(path = body.uri)
+                        call.respondFile(zipFile)
+                    } else {
+                        println("file dl block")
+//                        val targetUri = Uri.parse(body.uri)
+                        sd.respondFile(call, body.uri)
+                    }
                 }
 
                 post("/upload") {

@@ -33,9 +33,12 @@ data class RequestFolderBody(
     val path: String,
 )
 
+//enum class {}
+
 @Serializable
 data class RequestDownloadBody(
-    val uri: String
+    val uri: String,
+    val type: String,
 )
 
 @Serializable
